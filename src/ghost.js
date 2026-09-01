@@ -50,11 +50,10 @@ export class Ghost {
     this.n = pb ? pb.frames.length / 7 : 0;
     this.searchIdx = 0;
 
-    const geo = new THREE.ConeGeometry(0.7, 2.2, 3);
-    geo.rotateX(Math.PI / 2); // point +z
+    const geo = new THREE.BoxGeometry(1.05, 0.5, 1.9); // roughly the car
     this.mesh = new THREE.Mesh(
       geo,
-      new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.3, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.28, depthWrite: false }),
     );
     this.mesh.visible = !!pb;
     scene.add(this.mesh);

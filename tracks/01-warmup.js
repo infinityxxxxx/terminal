@@ -1,4 +1,4 @@
-{
+export default {
   "name": "Warmup",
   "author": "seth",
   "start":  { "cell": [0, 0, 0], "yaw": 0 },

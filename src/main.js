@@ -5,8 +5,10 @@ import { buildTrack } from './track.js';
 import { Car, setRapier } from './car.js';
 import { Recorder, Ghost, loadPB, savePB } from './ghost.js';
 import { hud } from './hud.js';
+import { TRACKS, DEFAULT_TRACK } from '../tracks/all.js';
 
-const TRACK_FILE = new URLSearchParams(location.search).get('track') || '01-warmup';
+const wanted = new URLSearchParams(location.search).get('track');
+const json = TRACKS[wanted] || TRACKS[DEFAULT_TRACK];
 
 await RAPIER.init();
 setRapier(RAPIER);
@@ -40,7 +42,6 @@ addEventListener('resize', () => {
 
 // --- world / track / car ---
 const world = new RAPIER.World({ x: 0, y: PHYS.GRAVITY, z: 0 });
-const json = await (await fetch(`./tracks/${TRACK_FILE}.json`)).json();
 const track = buildTrack(scene, world, json);
 const car = new Car(scene, world, track.start);
 

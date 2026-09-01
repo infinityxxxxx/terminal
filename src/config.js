@@ -42,15 +42,16 @@ export const PHYS = {
 };
 
 export const CAR = {
-  // wheel anchors in car-local space (x right, y up, z forward).
-  // one at the nose, two at the base -> the wedge.
+  // wheel anchors in car-local space (x right, y up, z forward). Four corners,
+  // PolyTrack-style low-poly car.
   WHEELS: [
-    [0.0, -0.28, 0.95],   // front / apex
-    [-0.62, -0.28, -0.85],// rear left
-    [0.62, -0.28, -0.85], // rear right
+    [-0.56, -0.18, 0.62],  // front left
+    [0.56, -0.18, 0.62],   // front right
+    [-0.56, -0.18, -0.66], // rear left
+    [0.56, -0.18, -0.66],  // rear right
   ],
-  HALF: [0.7, 0.28, 1.1], // collider half-extents
-  DENSITY: 0.9,           // -> mass ~1.5
+  HALF: [0.55, 0.26, 1.0], // collider half-extents
+  DENSITY: 0.9,            // -> mass ~1.2
 };
 
 // grid: blocks snap to CELL on x/z, CELL_Y per elevation step.

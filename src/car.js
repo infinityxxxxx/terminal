@@ -1,6 +1,7 @@
-// The wedge: a flat 3D triangle, one wheel at the nose, two at the base.
-// This file is just the visual shell + Rapier body lifecycle. All the physics
-// (and all the tuning) lives in carphys.js so it can run headless.
+// Low-poly car, PolyTrack style: chunky body, small cabin, little spoiler,
+// four corner wheels. This file is just the visual shell + Rapier body
+// lifecycle. All the physics (and tuning) lives in carphys.js so it runs
+// headless.
 import * as THREE from 'three';
 import { createCarBody, stepCar } from './carphys.js';
 import { CAR } from './config.js';
@@ -11,35 +12,30 @@ export function setRapier(r) {
   RAPIER = r;
 }
 
-function wedgeMesh() {
+function box(w, h, d, mat, x = 0, y = 0, z = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  return m;
+}
+
+function carMesh() {
   const g = new THREE.Group();
+  const paint = new THREE.MeshLambertMaterial({ color: 0x4a90d9 });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x24486e });
+  const rubber = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
 
-  const [hw, hh, hl] = [0.7, 0.22, 1.1]; // nose at +z, base at -z
-  const p = [
-    [-hw, -hh, -hl], [hw, -hh, -hl], [0, -hh, hl],
-    [-hw, hh, -hl], [hw, hh, -hl], [0, hh, hl],
-  ];
-  const tris = [
-    [0, 2, 1], [3, 4, 5],
-    [0, 1, 4], [0, 4, 3],
-    [1, 2, 5], [1, 5, 4],
-    [2, 0, 3], [2, 3, 5],
-  ];
-  const pos = [];
-  for (const t of tris) for (const vi of t) pos.push(...p[vi]);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.computeVertexNormals();
-  const body = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xff7733 }));
-  body.castShadow = true;
-  g.add(body);
+  g.add(box(1.05, 0.34, 1.7, paint, 0, 0.02, -0.05)); // main body (nose at +z)
+  g.add(box(0.92, 0.24, 0.62, paint, 0, -0.06, 0.78)); // lower nose
+  g.add(box(0.78, 0.32, 0.72, dark, 0, 0.32, -0.18)); // cabin
+  g.add(box(0.92, 0.05, 0.22, dark, 0, 0.28, -0.92)); // spoiler
 
-  const wheelGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.18, 16);
+  const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.22, 18);
   wheelGeo.rotateZ(Math.PI / 2);
-  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
   g.userData.wheels = CAR.WHEELS.map((w) => {
-    const m = new THREE.Mesh(wheelGeo, wheelMat);
+    const m = new THREE.Mesh(wheelGeo, rubber);
     m.position.set(...w);
+    m.castShadow = true;
     g.add(m);
     return m;
   });
@@ -49,7 +45,7 @@ function wedgeMesh() {
 export class Car {
   constructor(scene, world, start) {
     this.world = world;
-    this.mesh = wedgeMesh();
+    this.mesh = carMesh();
     scene.add(this.mesh);
     this.body = createCarBody(RAPIER, world);
     this.grounded = false;
