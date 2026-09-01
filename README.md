@@ -1,4 +1,4 @@
-# wedge racer
+# Terminal
 
 Single-player low-poly time-trial. PolyTrack-ish car, Trackmania-ish air.
 No checkpoints, no backend, no runtime network calls — three.js and the physics
