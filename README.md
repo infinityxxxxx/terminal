@@ -35,9 +35,13 @@ the jump). `start` and `finish` are `{cell, yaw}`. Run `node test.mjs`.
 All physics constants: `src/config.js`. The car model: `src/carphys.js`.
 Players can't change any of it in-game, by design.
 
+## controls
+
+arrows / WASD to drive, `R` or `T` to restart. In the air, hold brake
+(down / S) to level the car out ("air braking").
+
 ## not done yet
 
-- rewind (instant restart works; scrub-back doesn't)
 - track select menu (URL param only)
 - only one track authored
 - `curve_l/r` are flat pads, not proper banked curve meshes
