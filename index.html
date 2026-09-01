@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>wedge racer</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #8fc7e8; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    font: 500 16px/1.2 ui-monospace, "SF Mono", Menlo, monospace;
+    color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+  #time { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font-size: 34px; letter-spacing: 1px; }
+  #split { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 20px; }
+  #pb { position: absolute; top: 18px; left: 20px; opacity: .85; }
+  #speed { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 22px; }
+  #msg { position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%); font-size: 26px; text-align: center; }
+  #help { position: absolute; bottom: 16px; right: 18px; opacity: .7; font-size: 13px; text-align: right; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="time">00:00.000</div>
+  <div id="split"></div>
+  <div id="pb">PB  --:--.---</div>
+  <div id="speed">0 km/h</div>
+  <div id="msg"></div>
+  <div id="help">arrows / WASD to drive &nbsp;·&nbsp; R to restart</div>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.js",
+  "rapier": "./vendor/rapier.js"
+} }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
