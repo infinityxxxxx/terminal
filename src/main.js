@@ -47,15 +47,17 @@ const car = new Car(scene, world, track.start);
 
 let pb = loadPB(track.name);
 const rec = new Recorder();
-let ghost = new Ghost(scene, pb);
-hud.pb(pb?.time ?? null);
+const ghost = new Ghost(scene, pb);
+hud.menuTrack(track.name);
 
 // --- input ---
 const keys = new Set();
 addEventListener('keydown', (e) => {
   if (e.repeat) return;
   keys.add(e.code);
-  if (e.code === 'KeyR' || e.code === 'KeyT') restart(); // PolyTrack uses both
+  if (e.code === 'Escape') { if (state !== 'menu') enterMenu(); return; }
+  if ((e.code === 'KeyR' || e.code === 'KeyT') && state !== 'menu') armRace();
+  if (state === 'menu' && (e.code === 'Enter' || e.code === 'Space')) armRace();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 function readInput() {
@@ -66,29 +68,46 @@ function readInput() {
   return { throttle: (up ? 1 : 0) - (down ? 1 : 0), steer: (rightK ? 1 : 0) - (left ? 1 : 0) };
 }
 
-// --- race state ---
-let state = 'ready'; // ready -> running -> finished
-let elapsed = 0;
-let finishSide = 0;
+document.getElementById('play').addEventListener('click', armRace);
+document.getElementById('retry').addEventListener('click', armRace);
+document.getElementById('to-menu').addEventListener('click', enterMenu);
 
-function restart() {
+// --- race state: menu -> ready -> running -> finished ---
+let state = 'menu';
+let elapsed = 0;
+let finishSide = -1;
+
+function resetCar() {
   car.respawn(track.start);
   car.freeze();
   rec.reset();
   ghost.reset();
-  state = 'ready';
   elapsed = 0;
   finishSide = signToFinish();
+}
+function enterMenu() {
+  resetCar();
+  state = 'menu';
   hud.time(0);
   hud.split(null);
-  hud.msg('accelerate to start &nbsp;·&nbsp; <b>R</b> restart');
+  hud.tip(null);
+  hud.pb(pb?.time ?? null);
+  hud.screen('menu');
+}
+function armRace() {
+  resetCar();
+  state = 'ready';
+  hud.time(0);
+  hud.split(null);
+  hud.pb(pb?.time ?? null);
+  hud.tip('accelerate to start');
+  hud.screen('race');
 }
 
 function signToFinish() {
   const t = car.body.translation();
   return Math.sign(new THREE.Vector3(t.x, t.y, t.z).sub(track.finish.point).dot(track.finish.normal)) || -1;
 }
-
 function checkFinish() {
   const t = car.body.translation();
   const rel = new THREE.Vector3(t.x, t.y, t.z).sub(track.finish.point);
@@ -98,15 +117,22 @@ function checkFinish() {
   finishSide = side;
   return crossed;
 }
-
 function finish() {
   state = 'finished';
+  car.freeze();
+  const prev = pb;
   const isPB = savePB(track.name, elapsed, rec.frames.slice());
-  if (isPB) { pb = loadPB(track.name); hud.pb(pb.time); }
-  hud.msg(`FINISH &nbsp; <b>${elapsed.toFixed(3)}s</b>${isPB ? ' &nbsp;— NEW PB!' : ''}<br><span style="font-size:14px">press <b>R</b></span>`);
+  if (isPB) pb = loadPB(track.name);
+  hud.finish({
+    track: track.name,
+    time: elapsed,
+    isPB,
+    pbTime: prev ? prev.time : elapsed,
+    delta: prev ? elapsed - prev.time : null,
+  });
+  hud.pb(pb?.time ?? null);
+  hud.screen('finish');
 }
-
-restart();
 
 // --- fixed-step loop ---
 const camPos = new THREE.Vector3();
@@ -123,10 +149,10 @@ function step() {
     rec.reset();
     ghost.reset();
     car.unfreeze();
-    hud.msg('');
+    hud.tip(null);
   }
 
-  if (state !== 'ready') car.control(input);
+  if (state === 'running') car.control(input);
   world.step();
   car.syncMesh();
 
@@ -138,21 +164,31 @@ function step() {
     ghost.showAt(rec.count);
     hud.split(ghost.split(carPos, elapsed));
     hud.time(elapsed);
+    hud.speed(car.speedKmh);
     if (checkFinish() && rec.count > 30) finish(); // >0.5s guards a spawn-frame glitch
   }
-  hud.speed(car.speedKmh);
 }
 
 function updateCamera(dt) {
   const t = car.body.translation();
   const r = car.body.rotation();
   const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
-  // yaw only, so the camera doesn't roll with the car
-  const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.x * q.x));
-  const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
-  const want = new THREE.Vector3(t.x, t.y, t.z).addScaledVector(back, -8).add(new THREE.Vector3(0, 3.5, 0));
+  let want, aim;
+
+  if (state === 'menu') {
+    // slow orbit around the car on the start line
+    const a = performance.now() * 0.00016;
+    const c = track.start.pos;
+    want = new THREE.Vector3(c.x + Math.sin(a) * 11, c.y + 4.5, c.z + Math.cos(a) * 11 - 2);
+    aim = new THREE.Vector3(c.x, c.y + 0.8, c.z);
+  } else {
+    const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.x * q.x));
+    const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    want = new THREE.Vector3(t.x, t.y, t.z).addScaledVector(back, -8).add(new THREE.Vector3(0, 3.5, 0));
+    aim = new THREE.Vector3(t.x, t.y + 1, t.z);
+  }
   camPos.lerp(want, 1 - Math.pow(0.001, dt));
-  camAim.lerp(new THREE.Vector3(t.x, t.y + 1, t.z), 1 - Math.pow(0.0001, dt));
+  camAim.lerp(aim, 1 - Math.pow(0.0001, dt));
   camera.position.copy(camPos);
   camera.lookAt(camAim);
 }
@@ -171,5 +207,8 @@ function frame(now) {
   updateCamera(dt);
   renderer.render(scene, camera);
 }
-camPos.copy(camera.position.set(track.start.pos.x, track.start.pos.y + 4, track.start.pos.z - 8));
+
+camPos.copy(camera.position.set(track.start.pos.x, track.start.pos.y + 4.5, track.start.pos.z - 10));
+camAim.copy(track.start.pos);
+enterMenu();
 requestAnimationFrame(frame);

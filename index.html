@@ -5,30 +5,107 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Terminal</title>
 <style>
-  * { margin: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; background: #8fc7e8; }
-  canvas { display: block; }
-  #hud {
-    position: fixed; inset: 0; pointer-events: none;
-    font: 500 16px/1.2 ui-monospace, "SF Mono", Menlo, monospace;
-    color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.5);
+  :root {
+    --sky:#8fc7e8;
+    --panel:rgba(255,255,255,.94);
+    --ink:#17313d;
+    --ink-soft:#5b7683;
+    --accent:#12b5ac;
+    --accent-press:#0e9a92;
+    --gold:#f5a600;
+    --good:#22b45e;
+    --bad:#e8523c;
+    --radius:16px;
+    --shadow:0 10px 40px rgba(20,50,60,.22);
+    --font:ui-rounded,"SF Pro Rounded","Nunito","Quicksand","Segoe UI",system-ui,sans-serif;
   }
-  #time { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font-size: 34px; letter-spacing: 1px; }
-  #split { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 20px; }
-  #pb { position: absolute; top: 18px; left: 20px; opacity: .85; }
-  #speed { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 22px; }
-  #msg { position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%); font-size: 26px; text-align: center; }
-  #help { position: absolute; bottom: 16px; right: 18px; opacity: .7; font-size: 13px; text-align: right; }
+  * { margin:0; box-sizing:border-box; }
+  html,body { height:100%; overflow:hidden; background:var(--sky); font-family:var(--font); }
+  canvas { position:fixed; inset:0; display:block; z-index:1; }
+
+  #overlay { position:fixed; inset:0; z-index:2; pointer-events:none; }
+  .screen { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:22px; opacity:0; pointer-events:none; transition:opacity .18s ease;
+    background:rgba(143,199,232,.34); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+  .screen.show { opacity:1; pointer-events:auto; }
+
+  /* --- menu --- */
+  .wordmark { font-size:clamp(46px,9vw,104px); font-weight:800; letter-spacing:.14em;
+    color:var(--ink); text-shadow:0 4px 0 rgba(255,255,255,.45); }
+  .wordmark span { color:var(--accent); }
+  .tag { margin-top:-14px; font-size:13px; font-weight:700; letter-spacing:.34em;
+    text-transform:uppercase; color:var(--ink-soft); }
+  .btn { font-family:inherit; font-weight:800; border:0; cursor:pointer; border-radius:999px;
+    padding:16px 48px; font-size:20px; letter-spacing:.08em; color:#fff; background:var(--accent);
+    box-shadow:var(--shadow); transition:transform .12s ease, background .12s ease; }
+  .btn:hover { transform:translateY(-2px); background:var(--accent-press); }
+  .btn:active { transform:translateY(1px); }
+  .btn.ghost { background:var(--panel); color:var(--ink); }
+  .btn.ghost:hover { background:#fff; }
+  .hint { font-size:13px; font-weight:600; color:var(--ink-soft); letter-spacing:.03em; }
+  .hint b { color:var(--ink); }
+  .hint.track { font-size:14px; font-weight:800; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+
+  /* --- in-race hud --- */
+  #hud { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .15s ease; }
+  #hud.show { opacity:1; }
+  #hud .col { color:#fff; font-variant-numeric:tabular-nums; text-shadow:0 3px 16px rgba(0,0,0,.4); }
+  #time  { position:absolute; top:20px; left:50%; transform:translateX(-50%); font-size:54px; font-weight:800; }
+  #split { position:absolute; top:86px; left:50%; transform:translateX(-50%); font-size:22px; font-weight:800; }
+  #pb    { position:absolute; top:26px; left:26px; font-size:15px; font-weight:700; opacity:.92; }
+  .spd   { position:absolute; bottom:34px; left:50%; transform:translateX(-50%); font-size:30px; font-weight:800; }
+  .spd small { font-size:15px; font-weight:700; opacity:.7; margin-left:5px; }
+  #tip { position:absolute; bottom:100px; left:50%; transform:translateX(-50%); background:var(--panel);
+    color:var(--ink); font-weight:800; font-size:14px; letter-spacing:.06em; text-transform:uppercase;
+    padding:11px 24px; border-radius:999px; box-shadow:var(--shadow); }
+
+  /* --- finish card --- */
+  .card { background:var(--panel); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:34px 46px; text-align:center; display:flex; flex-direction:column; gap:12px; min-width:340px; }
+  .card .track { font-size:12px; font-weight:800; letter-spacing:.26em; text-transform:uppercase; color:var(--ink-soft); }
+  .card .head { font-size:22px; font-weight:800; letter-spacing:.06em; color:var(--ink); }
+  .card .head.pb { color:var(--gold); }
+  .card .big { font-size:64px; font-weight:800; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .card .cmp { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; min-height:20px; }
+  .card .row { display:flex; gap:12px; justify-content:center; margin-top:6px; }
+  .card .row .btn { padding:12px 30px; font-size:16px; box-shadow:none; }
+  .card .kb { font-size:12px; font-weight:600; color:var(--ink-soft); }
+  .card .kb b { color:var(--ink); }
+
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
-<div id="hud">
-  <div id="time">00:00.000</div>
-  <div id="split"></div>
-  <div id="pb">PB  --:--.---</div>
-  <div id="speed">0 km/h</div>
-  <div id="msg"></div>
-  <div id="help">arrows / WASD to drive &nbsp;·&nbsp; R to restart</div>
+<div id="overlay">
+  <div id="menu" class="screen">
+    <div class="wordmark"><span>T</span>ERMINAL</div>
+    <div class="tag">time trial</div>
+    <button id="play" class="btn">PLAY</button>
+    <div class="hint track" id="menu-track">Warmup</div>
+    <div class="hint"><b>WASD</b> / arrows to drive &nbsp;·&nbsp; <b>R</b> restart &nbsp;·&nbsp; brake in the air to level out</div>
+  </div>
+
+  <div id="hud">
+    <div id="pb" class="col">PB --:--.---</div>
+    <div id="time" class="col">00:00.000</div>
+    <div id="split" class="col"></div>
+    <div class="spd col"><span id="speed">0</span><small>km/h</small></div>
+    <div id="tip" hidden>accelerate to start</div>
+  </div>
+
+  <div id="finish" class="screen">
+    <div class="card">
+      <div class="track" id="f-track">Warmup</div>
+      <div class="head" id="f-head">FINISH</div>
+      <div class="big" id="f-time">00:00.000</div>
+      <div class="cmp" id="f-cmp"></div>
+      <div class="row">
+        <button id="retry" class="btn">RETRY</button>
+        <button id="to-menu" class="btn ghost">MENU</button>
+      </div>
+      <div class="kb">press <b>R</b> to retry &nbsp;·&nbsp; <b>Esc</b> for menu</div>
+    </div>
+  </div>
 </div>
 <script type="importmap">
 { "imports": {
