@@ -7,12 +7,16 @@ export const FIXED_DT = 1 / 60;
 export const PHYS = {
   GRAVITY: -32,
 
-  // engine / speed
-  ENGINE_ACCEL: 40,      // forward accel on the ground (m/s^2)
-  BRAKE_ACCEL: 70,
-  REVERSE_ACCEL: 18,
+  // engine / speed — PolyTrack-ish: eager off the line, tapers hard toward top
+  // speed, and lifting off actually slows you down (engine braking + rolling
+  // resistance). All ground-only; the air stays drag-free (rule #1).
+  ENGINE_ACCEL: 20,      // base drive accel (m/s^2), scaled by the speed taper
+  BRAKE_DECEL: 40,       // holding brake while rolling forward
+  COAST_DECEL: 9,        // engine braking when you're off the throttle
+  ROLL_K: 0.03,          // rolling resistance, proportional to forward speed
+  REVERSE_ACCEL: 13,
   MAX_SPEED: 115,        // ~415 "km/h" on the HUD
-  MAX_REVERSE: 22,
+  MAX_REVERSE: 18,
 
   // steering (ground)
   TURN_RATE: 2.5,        // rad/s at low speed
@@ -26,11 +30,9 @@ export const PHYS = {
   STIFF: 130,
   DAMP: 12,
 
-  // air. THE KEY RULE: no drag, no slowdown. Momentum is kept exactly.
-  // Only these tiny assists act, so you land rubber-side down and can nudge
-  // the nose (Trackmania-ish air control) without scrubbing speed.
+  // air. THE KEY RULE: no drag, no slowdown, and no steering — the car holds
+  // its heading and speed exactly. Only these tiny assists act.
   AIR_ANG_DAMP: 0.985,   // per step, bleeds wild tumbling only
-  AIR_CONTROL: 2.2,      // rad/s of nose authority from steering in the air
   AIR_UPRIGHT: 1.4,      // gentle passive auto-level toward world up
   // "air braking": hold brake in the air to snap the car flat. Torque only,
   // so horizontal speed is untouched (rule #1 still holds).

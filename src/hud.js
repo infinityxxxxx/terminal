@@ -11,8 +11,9 @@ const signed = (d, dp = 2) => (d < 0 ? '-' : '+') + Math.abs(d).toFixed(dp);
 
 export const hud = {
   screen(name) {
-    // 'menu' | 'race' | 'finish'
+    // 'menu' | 'tracks' | 'race' | 'finish'
     $('menu').classList.toggle('show', name === 'menu');
+    $('tracks').classList.toggle('show', name === 'tracks');
     $('finish').classList.toggle('show', name === 'finish');
     $('hud').classList.toggle('show', name === 'race');
   },
@@ -26,11 +27,15 @@ export const hud = {
   pb(t) {
     $('pb').textContent = `PB ${fmt(t)}`;
   },
+  // called only when a checkpoint is crossed (or null to clear). Pops on update.
   split(d) {
     const el = $('split');
     if (d == null) { el.textContent = ''; return; }
     el.textContent = signed(d);
     el.style.color = d < 0 ? 'var(--good)' : 'var(--bad)';
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
   },
   tip(text) {
     const el = $('tip');

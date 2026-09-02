@@ -5,84 +5,144 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Terminal</title>
 <style>
+  @font-face {
+    font-family:"Oxanium";
+    src:url("./vendor/oxanium.woff2") format("woff2");
+    font-weight:200 800;
+    font-display:swap;
+  }
   :root {
-    --sky:#8fc7e8;
-    --panel:rgba(255,255,255,.94);
-    --ink:#17313d;
-    --ink-soft:#5b7683;
-    --accent:#12b5ac;
-    --accent-press:#0e9a92;
-    --gold:#f5a600;
-    --good:#22b45e;
-    --bad:#e8523c;
-    --radius:16px;
-    --shadow:0 10px 40px rgba(20,50,60,.22);
-    --font:ui-rounded,"SF Pro Rounded","Nunito","Quicksand","Segoe UI",system-ui,sans-serif;
+    --bg:#8fc7e8;
+    --scrim:rgba(10,17,40,.78);
+    --navy:#17264f;
+    --navy-2:#22376b;
+    --line:rgba(255,255,255,.10);
+    --ink:#eaf0ff;
+    --ink-soft:#9fb2df;
+    --logo:#c3ccff;
+    --logo-edge:#26356e;
+    --gold:#ffcf4a;
+    --good:#54e08a;
+    --bad:#ff6b5e;
+    --radius:10px;
+    --shadow:0 14px 44px rgba(0,0,0,.42);
+    --font:"Oxanium","Segoe UI",system-ui,sans-serif;
   }
   * { margin:0; box-sizing:border-box; }
-  html,body { height:100%; overflow:hidden; background:var(--sky); font-family:var(--font); }
+  html,body { height:100%; overflow:hidden; background:var(--bg); font-family:var(--font); }
   canvas { position:fixed; inset:0; display:block; z-index:1; }
 
   #overlay { position:fixed; inset:0; z-index:2; pointer-events:none; }
   .screen { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    flex-direction:column; gap:22px; opacity:0; pointer-events:none; transition:opacity .18s ease;
-    background:rgba(143,199,232,.34); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+    flex-direction:column; gap:26px; opacity:0; pointer-events:none; transition:opacity .18s ease;
+    background:var(--scrim); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
   .screen.show { opacity:1; pointer-events:auto; }
+  [hidden] { display:none !important; }
 
   /* --- menu --- */
-  .wordmark { font-size:clamp(46px,9vw,104px); font-weight:800; letter-spacing:.14em;
-    color:var(--ink); text-shadow:0 4px 0 rgba(255,255,255,.45); }
-  .wordmark span { color:var(--accent); }
-  .tag { margin-top:-14px; font-size:13px; font-weight:700; letter-spacing:.34em;
-    text-transform:uppercase; color:var(--ink-soft); }
-  .btn { font-family:inherit; font-weight:800; border:0; cursor:pointer; border-radius:999px;
-    padding:16px 48px; font-size:20px; letter-spacing:.08em; color:#fff; background:var(--accent);
+  .wordmark { font-size:clamp(52px,10vw,118px); font-weight:800; letter-spacing:.04em;
+    color:var(--logo); transform:skewX(-8deg);
+    text-shadow:4px 4px 0 var(--logo-edge), 0 10px 30px rgba(0,0,0,.5); }
+  .tiles { display:flex; gap:16px; }
+  .tile { width:132px; height:132px; border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--navy); color:var(--ink); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:12px; cursor:pointer; font-family:inherit;
+    font-weight:700; font-size:14px; letter-spacing:.16em; text-transform:uppercase;
     box-shadow:var(--shadow); transition:transform .12s ease, background .12s ease; }
-  .btn:hover { transform:translateY(-2px); background:var(--accent-press); }
-  .btn:active { transform:translateY(1px); }
-  .btn.ghost { background:var(--panel); color:var(--ink); }
-  .btn.ghost:hover { background:#fff; }
-  .hint { font-size:13px; font-weight:600; color:var(--ink-soft); letter-spacing:.03em; }
-  .hint b { color:var(--ink); }
-  .hint.track { font-size:14px; font-weight:800; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+  .tile:hover { background:var(--navy-2); transform:translateY(-3px); }
+  .tile svg { width:42px; height:42px; fill:var(--ink); }
+  .foot { position:absolute; bottom:18px; left:0; right:0; text-align:center; font-size:11px;
+    font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft); }
+  .subtle { font-size:12px; font-weight:700; letter-spacing:.24em; text-transform:uppercase; color:var(--ink-soft); }
+
+  /* --- track select --- */
+  #tracks { justify-content:flex-start; gap:0; }
+  .topbar { align-self:stretch; display:flex; align-items:center; gap:22px; padding:15px 24px;
+    background:var(--navy); border-bottom:1px solid var(--line); }
+  .back { font-family:inherit; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    background:var(--navy-2); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+    padding:9px 16px; cursor:pointer; font-size:12px; }
+  .back:hover { background:#2b437f; }
+  .tab { font-weight:800; letter-spacing:.08em; text-transform:uppercase; font-size:16px;
+    color:var(--ink); border-bottom:3px solid var(--logo); padding-bottom:4px; }
+  .cat { align-self:stretch; margin:20px 28px 0; padding-bottom:8px; font-weight:800;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--ink); font-size:17px;
+    border-bottom:1px solid var(--line); }
+  .cards { align-self:stretch; display:flex; flex-wrap:wrap; gap:16px; padding:20px 28px;
+    overflow-y:auto; }
+  .card2 { width:170px; background:var(--navy); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px; cursor:pointer; transition:transform .12s ease, background .12s ease; }
+  .card2:hover { background:var(--navy-2); transform:translateY(-3px); }
+  .card2 .nm { font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--ink);
+    font-size:13px; text-align:center; margin-bottom:8px; }
+  .card2 .mini { background:rgba(0,0,0,.22); border-radius:6px; aspect-ratio:1; padding:8px; }
+  .card2 .mini svg { width:100%; height:100%; display:block; }
+  .card2 .rec { margin-top:8px; text-align:center; font-weight:700; font-size:11px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+  .card2 .rec.has { color:var(--logo); }
 
   /* --- in-race hud --- */
   #hud { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .15s ease; }
   #hud.show { opacity:1; }
-  #hud .col { color:#fff; font-variant-numeric:tabular-nums; text-shadow:0 3px 16px rgba(0,0,0,.4); }
+  #hud .col { color:#fff; font-variant-numeric:tabular-nums; text-shadow:0 3px 16px rgba(0,0,0,.45); }
   #time  { position:absolute; top:20px; left:50%; transform:translateX(-50%); font-size:54px; font-weight:800; }
-  #split { position:absolute; top:86px; left:50%; transform:translateX(-50%); font-size:22px; font-weight:800; }
+  #split { position:absolute; top:88px; left:50%; transform:translateX(-50%); font-size:24px; font-weight:800; }
+  #split.pop { animation:pop .4s ease; }
+  @keyframes pop { 0% { transform:translateX(-50%) scale(1.7); } 100% { transform:translateX(-50%) scale(1); } }
   #pb    { position:absolute; top:26px; left:26px; font-size:15px; font-weight:700; opacity:.92; }
   .spd   { position:absolute; bottom:34px; left:50%; transform:translateX(-50%); font-size:30px; font-weight:800; }
   .spd small { font-size:15px; font-weight:700; opacity:.7; margin-left:5px; }
-  #tip { position:absolute; bottom:100px; left:50%; transform:translateX(-50%); background:var(--panel);
-    color:var(--ink); font-weight:800; font-size:14px; letter-spacing:.06em; text-transform:uppercase;
-    padding:11px 24px; border-radius:999px; box-shadow:var(--shadow); }
+  #tip { position:absolute; bottom:104px; left:50%; transform:translateX(-50%); background:var(--navy);
+    color:var(--ink); border:1px solid var(--line); font-weight:800; font-size:13px; letter-spacing:.1em;
+    text-transform:uppercase; padding:11px 24px; border-radius:999px; box-shadow:var(--shadow); }
 
   /* --- finish card --- */
-  .card { background:var(--panel); border-radius:var(--radius); box-shadow:var(--shadow);
-    padding:34px 46px; text-align:center; display:flex; flex-direction:column; gap:12px; min-width:340px; }
+  .card { background:var(--navy); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:34px 46px; text-align:center; display:flex; flex-direction:column;
+    gap:12px; min-width:360px; }
   .card .track { font-size:12px; font-weight:800; letter-spacing:.26em; text-transform:uppercase; color:var(--ink-soft); }
   .card .head { font-size:22px; font-weight:800; letter-spacing:.06em; color:var(--ink); }
   .card .head.pb { color:var(--gold); }
   .card .big { font-size:64px; font-weight:800; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
   .card .cmp { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; min-height:20px; }
   .card .row { display:flex; gap:12px; justify-content:center; margin-top:6px; }
-  .card .row .btn { padding:12px 30px; font-size:16px; box-shadow:none; }
   .card .kb { font-size:12px; font-weight:600; color:var(--ink-soft); }
   .card .kb b { color:var(--ink); }
 
-  [hidden] { display:none !important; }
+  .btn { font-family:inherit; font-weight:800; border:1px solid var(--line); cursor:pointer;
+    border-radius:8px; padding:12px 30px; font-size:15px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink); background:#3a57b0; transition:transform .12s ease, background .12s ease; }
+  .btn:hover { transform:translateY(-2px); background:#4767c8; }
+  .btn:active { transform:translateY(1px); }
+  .btn.ghost { background:var(--navy-2); }
+  .btn.ghost:hover { background:#2b437f; }
 </style>
 </head>
 <body>
 <div id="overlay">
   <div id="menu" class="screen">
-    <div class="wordmark"><span>T</span>ERMINAL</div>
-    <div class="tag">time trial</div>
-    <button id="play" class="btn">PLAY</button>
-    <div class="hint track" id="menu-track">Warmup</div>
-    <div class="hint"><b>WASD</b> / arrows to drive &nbsp;·&nbsp; <b>R</b> restart &nbsp;·&nbsp; brake in the air to level out</div>
+    <div class="wordmark">TERMINAL</div>
+    <div class="tiles">
+      <button id="open-tracks" class="tile" type="button">
+        <svg viewBox="0 0 24 24"><path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z"/></svg>
+        Tracks
+      </button>
+      <button id="play" class="tile" type="button">
+        <svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>
+        Play
+      </button>
+    </div>
+    <div class="subtle" id="menu-track">Warmup</div>
+    <div class="foot">Terminal &nbsp;·&nbsp; time trial &nbsp;·&nbsp; WASD to drive, R to restart</div>
+  </div>
+
+  <div id="tracks" class="screen">
+    <div class="topbar">
+      <button id="tracks-back" class="back" type="button">&larr; Back</button>
+      <span class="tab">Official</span>
+    </div>
+    <div class="cat">Practice</div>
+    <div id="cards" class="cards"></div>
   </div>
 
   <div id="hud">
@@ -100,8 +160,8 @@
       <div class="big" id="f-time">00:00.000</div>
       <div class="cmp" id="f-cmp"></div>
       <div class="row">
-        <button id="retry" class="btn">RETRY</button>
-        <button id="to-menu" class="btn ghost">MENU</button>
+        <button id="retry" class="btn" type="button">Retry</button>
+        <button id="to-menu" class="btn ghost" type="button">Menu</button>
       </div>
       <div class="kb">press <b>R</b> to retry &nbsp;·&nbsp; <b>Esc</b> for menu</div>
     </div>

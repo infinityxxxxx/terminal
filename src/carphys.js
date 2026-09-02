@@ -79,12 +79,21 @@ export function stepCar(RAPIER, world, body, input) {
   const speedFrac = Math.min(1, Math.abs(fwdSpeed) / PHYS.MAX_SPEED);
 
   if (driving) {
-    let accel = 0;
-    if (input.throttle > 0 && fwdSpeed < PHYS.MAX_SPEED) accel = PHYS.ENGINE_ACCEL * input.throttle;
-    else if (input.throttle < 0) {
-      accel = fwdSpeed > 0.5 ? -PHYS.BRAKE_ACCEL : (fwdSpeed > -PHYS.MAX_REVERSE ? -PHYS.REVERSE_ACCEL : 0);
+    // longitudinal: eager off the line, tapered toward top speed; off-throttle
+    // and braking actually slow you (ground only — air keeps all its speed).
+    const vmax = PHYS.MAX_SPEED;
+    let a;
+    if (input.throttle > 0) {
+      const taper = Math.max(0, 1 - (Math.max(0, fwdSpeed) / vmax) ** 2);
+      a = PHYS.ENGINE_ACCEL * taper * input.throttle;
+    } else if (input.throttle < 0) {
+      if (fwdSpeed > 0.5) a = -PHYS.BRAKE_DECEL;
+      else a = fwdSpeed > -PHYS.MAX_REVERSE ? -PHYS.REVERSE_ACCEL : 0;
+    } else {
+      a = fwdSpeed > 0.3 ? -PHYS.COAST_DECEL : (fwdSpeed < -0.3 ? PHYS.COAST_DECEL : 0);
     }
-    if (accel) body.applyImpulse(scale(fwd, (accel * mass) / 60), true);
+    a -= PHYS.ROLL_K * fwdSpeed; // rolling resistance
+    body.applyImpulse(scale(fwd, (a * mass) / 60), true);
 
     // lateral grip: scrub sideways velocity
     const lat = dot(vel, right);
@@ -99,13 +108,12 @@ export function stepCar(RAPIER, world, body, input) {
 
     uprightTorque(body, up, gN, PHYS.UPRIGHT, mass);
   } else {
-    // AIR: no drag, speed untouched. Steering yaws the nose; holding brake
-    // ("air braking") snaps the car flat. Both are torque-only.
+    // AIR: no drag, no steering — heading and speed are held exactly. Holding
+    // brake ("air braking") snaps the car flat. Torque-only.
     const braking = input.throttle < 0;
     const damp = braking ? PHYS.AIR_BRAKE_DAMP : PHYS.AIR_ANG_DAMP;
     const av = body.angvel();
     body.setAngvel({ x: av.x * damp, y: av.y * damp, z: av.z * damp }, true);
-    if (input.steer) body.applyTorqueImpulse(scale(up, (-input.steer * PHYS.AIR_CONTROL * mass) / 60), true);
     uprightTorque(body, up, { x: 0, y: 1, z: 0 }, braking ? PHYS.AIR_BRAKE_LEVEL : PHYS.AIR_UPRIGHT, mass);
   }
 

@@ -4,11 +4,13 @@ import { FIXED_DT, PHYS } from './config.js';
 import { buildTrack } from './track.js';
 import { Car, setRapier } from './car.js';
 import { Recorder, Ghost, loadPB, savePB } from './ghost.js';
-import { hud } from './hud.js';
+import { hud, fmt } from './hud.js';
+import { minimapSVG } from './minimap.js';
 import { TRACKS, DEFAULT_TRACK } from '../tracks/all.js';
 
 const wanted = new URLSearchParams(location.search).get('track');
-const json = TRACKS[wanted] || TRACKS[DEFAULT_TRACK];
+const activeKey = TRACKS[wanted] ? wanted : DEFAULT_TRACK;
+const json = TRACKS[activeKey];
 
 await RAPIER.init();
 setRapier(RAPIER);
@@ -56,7 +58,7 @@ addEventListener('keydown', (e) => {
   if (e.repeat) return;
   keys.add(e.code);
   if (e.code === 'Escape') { if (state !== 'menu') enterMenu(); return; }
-  if ((e.code === 'KeyR' || e.code === 'KeyT') && state !== 'menu') armRace();
+  if ((e.code === 'KeyR' || e.code === 'KeyT') && (state === 'ready' || state === 'running' || state === 'finished')) armRace();
   if (state === 'menu' && (e.code === 'Enter' || e.code === 'Space')) armRace();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
@@ -71,11 +73,44 @@ function readInput() {
 document.getElementById('play').addEventListener('click', armRace);
 document.getElementById('retry').addEventListener('click', armRace);
 document.getElementById('to-menu').addEventListener('click', enterMenu);
+document.getElementById('tracks-back').addEventListener('click', enterMenu);
+document.getElementById('open-tracks').addEventListener('click', () => {
+  renderTracks();
+  state = 'tracks';
+  hud.screen('tracks');
+});
+
+function renderTracks() {
+  const host = document.getElementById('cards');
+  host.innerHTML = '';
+  for (const [key, def] of Object.entries(TRACKS)) {
+    const rec = loadPB(def.name);
+    const card = document.createElement('div');
+    card.className = 'card2';
+    card.innerHTML =
+      `<div class="nm">${def.name}</div>` +
+      `<div class="mini">${minimapSVG(def.blocks, def.start.cell, def.finish.cell)}</div>` +
+      `<div class="rec ${rec ? 'has' : ''}">${rec ? fmt(rec.time) : 'No record'}</div>`;
+    card.addEventListener('click', () => {
+      if (key === activeKey) armRace();
+      else location.search = '?track=' + encodeURIComponent(key);
+    });
+    host.appendChild(card);
+  }
+}
 
 // --- race state: menu -> ready -> running -> finished ---
 let state = 'menu';
 let elapsed = 0;
 let finishSide = -1;
+let cpIndex = 0; // next checkpoint we're watching for
+let cpSide = []; // which side of each checkpoint plane the car is currently on
+let playerCp = []; // frame index at which the player crossed each checkpoint
+
+const gateSide = (g) => {
+  const t = car.body.translation();
+  return Math.sign(new THREE.Vector3(t.x, t.y, t.z).sub(g.point).dot(g.normal)) || -1;
+};
 
 function resetCar() {
   car.respawn(track.start);
@@ -83,7 +118,10 @@ function resetCar() {
   rec.reset();
   ghost.reset();
   elapsed = 0;
-  finishSide = signToFinish();
+  finishSide = gateSide(track.finish);
+  cpIndex = 0;
+  cpSide = track.checkpoints.map(gateSide);
+  playerCp = [];
 }
 function enterMenu() {
   resetCar();
@@ -104,10 +142,6 @@ function armRace() {
   hud.screen('race');
 }
 
-function signToFinish() {
-  const t = car.body.translation();
-  return Math.sign(new THREE.Vector3(t.x, t.y, t.z).sub(track.finish.point).dot(track.finish.normal)) || -1;
-}
 function checkFinish() {
   const t = car.body.translation();
   const rel = new THREE.Vector3(t.x, t.y, t.z).sub(track.finish.point);
@@ -117,12 +151,35 @@ function checkFinish() {
   finishSide = side;
   return crossed;
 }
+
+// yellow checkpoints: not gates. If we're near the next one and cross its plane
+// forward, record the frame and flash the split vs the ghost's time there.
+function checkCheckpoints() {
+  if (cpIndex >= track.checkpoints.length) return;
+  const cp = track.checkpoints[cpIndex];
+  const t = car.body.translation();
+  const rel = new THREE.Vector3(t.x, t.y, t.z).sub(cp.point);
+  if (Math.abs(rel.x) > cp.half && Math.abs(rel.z) > cp.half) return; // not near it
+  const side = Math.sign(rel.dot(cp.normal)) || cpSide[cpIndex];
+  if (cpSide[cpIndex] < 0 && side >= 0) {
+    playerCp[cpIndex] = rec.count;
+    const gt = ghost.cpTimes[cpIndex];
+    if (gt != null) hud.split(elapsed - gt); // -ve = ahead of the ghost
+    cpIndex++;
+  } else {
+    cpSide[cpIndex] = side;
+  }
+}
+
 function finish() {
   state = 'finished';
   car.freeze();
   const prev = pb;
-  const isPB = savePB(track.name, elapsed, rec.frames.slice());
-  if (isPB) pb = loadPB(track.name);
+  const isPB = savePB(track.name, elapsed, rec.frames.slice(), playerCp.slice());
+  if (isPB) {
+    pb = loadPB(track.name);
+    ghost.setPB(pb);
+  }
   hud.finish({
     track: track.name,
     time: elapsed,
@@ -159,12 +216,10 @@ function step() {
   if (state === 'running') {
     elapsed += FIXED_DT;
     rec.push(car.pose);
-    const t = car.body.translation();
-    const carPos = new THREE.Vector3(t.x, t.y, t.z);
     ghost.showAt(rec.count);
-    hud.split(ghost.split(carPos, elapsed));
     hud.time(elapsed);
     hud.speed(car.speedKmh);
+    checkCheckpoints();
     if (checkFinish() && rec.count > 30) finish(); // >0.5s guards a spawn-frame glitch
   }
 }
@@ -175,7 +230,7 @@ function updateCamera(dt) {
   const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
   let want, aim;
 
-  if (state === 'menu') {
+  if (state === 'menu' || state === 'tracks') {
     // slow orbit around the car on the start line
     const a = performance.now() * 0.00016;
     const c = track.start.pos;
